@@ -50,7 +50,10 @@ public:
 
 	/// Destruct the world. All physics entities are destroyed and all heap memory is released.
 	~b2World();
-
+	
+	/// ensure all contacts are up to date. Do not change anything else
+	void UpdateContacts();
+	
 	/// Register a destruction listener. The listener is owned by you and must
 	/// remain in scope.
 	void SetDestructionListener(b2DestructionListener* listener);

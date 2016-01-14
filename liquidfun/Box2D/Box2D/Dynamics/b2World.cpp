@@ -70,6 +70,12 @@ b2World::~b2World()
 	b2Assert(m_blockAllocator.GetNumGiantAllocations() == 0);
 }
 
+void b2World::UpdateContacts()
+{
+	m_contactManager.FindNewContacts();
+	m_contactManager.Collide();
+}
+
 void b2World::SetDestructionListener(b2DestructionListener* listener)
 {
 	m_destructionListener = listener;
