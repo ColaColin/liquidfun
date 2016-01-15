@@ -22,7 +22,7 @@
 // Find the max separation between poly1 and poly2 using edge normals from poly1.
 static float32 b2FindMaxSeparation(int32* edgeIndex,
 								 const b2PolygonShape* poly1, const b2Transform& xf1,
-								 const b2PolygonShape* poly2, const b2Transform& xf2)
+								 const b2PolygonShape* poly2, const b2Transform& xf2, float32 minSepForSkip)
 {
 	int32 count1 = poly1->m_count;
 	int32 count2 = poly2->m_count;
@@ -49,7 +49,12 @@ static float32 b2FindMaxSeparation(int32* edgeIndex,
 				si = sij;
 			}
 		}
-
+		
+		// no collision will happen anyway, skip the work
+		if (si > minSepForSkip) {
+			return si;
+		}
+		
 		if (si > maxSeparation)
 		{
 			maxSeparation = si;
@@ -121,12 +126,12 @@ void b2CollidePolygons(b2Manifold* manifold,
 	float32 totalRadius = polyA->m_radius + polyB->m_radius;
 
 	int32 edgeA = 0;
-	float32 separationA = b2FindMaxSeparation(&edgeA, polyA, xfA, polyB, xfB);
+	float32 separationA = b2FindMaxSeparation(&edgeA, polyA, xfA, polyB, xfB, totalRadius);
 	if (separationA > totalRadius)
 		return;
 
 	int32 edgeB = 0;
-	float32 separationB = b2FindMaxSeparation(&edgeB, polyB, xfB, polyA, xfA);
+	float32 separationB = b2FindMaxSeparation(&edgeB, polyB, xfB, polyA, xfA, totalRadius);
 	if (separationB > totalRadius)
 		return;
 
@@ -163,19 +168,22 @@ void b2CollidePolygons(b2Manifold* manifold,
 		manifold->type = b2Manifold::e_faceA;
 		flip = 0;
 	}
-
-	b2ClipVertex incidentEdge[2];
-	b2FindIncidentEdge(incidentEdge, poly1, xf1, edge1, poly2, xf2);
-
+	
 	// this allows to construct bodies from many tightly packed fixtures and ignore collisions on inner edges
 	// this prevents phantom collisions when objects made from many tiles slide along each other
 	// however if objects are completely inside of each other I'd like the behavior not to change, so only ignore
 	// phantom collisions that are inside the polygon skin, this way polygons can slide on the skin, but will collide when
 	// pressed harder into each other
 	 // in fact I rather have them slide more and collide less, so -totalRadius
-	if (((poly1->m_phantomEdges & (1 << incidentEdge[0].id.cf.indexA)) && sep1 >= -totalRadius)
-		|| 
-		((poly2->m_phantomEdges & (1 << incidentEdge[0].id.cf.indexB)) && sep2 >= -totalRadius)) 
+	if ((poly1->m_phantomEdges & (1 << edge1)) && sep1 >= -totalRadius) 
+	{
+		return;
+	}
+	
+	b2ClipVertex incidentEdge[2];
+	b2FindIncidentEdge(incidentEdge, poly1, xf1, edge1, poly2, xf2);
+
+	if ((poly2->m_phantomEdges & (1 << incidentEdge[0].id.cf.indexB)) && sep2 >= -totalRadius) 
 	{
 		return;
 	}
