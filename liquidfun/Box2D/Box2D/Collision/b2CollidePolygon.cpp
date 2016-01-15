@@ -174,8 +174,8 @@ void b2CollidePolygons(b2Manifold* manifold,
 	// however if objects are completely inside of each other I'd like the behavior not to change, so only ignore
 	// phantom collisions that are inside the polygon skin, this way polygons can slide on the skin, but will collide when
 	// pressed harder into each other
-	 // in fact I rather have them slide more and collide less, so -totalRadius
-	if ((poly1->m_phantomEdges & (1 << edge1)) && sep1 >= -totalRadius) 
+	 // in fact I rather have them slide more and collide less, so be a little more generous, tweaked around my own object sizes...
+	if ((poly1->m_phantomEdges & (1 << edge1)) && sep1 >= -b2_linearSlop*10) 
 	{
 		return;
 	}
@@ -183,7 +183,7 @@ void b2CollidePolygons(b2Manifold* manifold,
 	b2ClipVertex incidentEdge[2];
 	b2FindIncidentEdge(incidentEdge, poly1, xf1, edge1, poly2, xf2);
 
-	if ((poly2->m_phantomEdges & (1 << incidentEdge[0].id.cf.indexB)) && sep2 >= -totalRadius) 
+	if ((poly2->m_phantomEdges & (1 << incidentEdge[0].id.cf.indexB)) && sep2 >= -b2_linearSlop*10) 
 	{
 		return;
 	}

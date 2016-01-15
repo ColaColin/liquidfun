@@ -84,6 +84,11 @@ void b2CollidePolygonAndCircle(
 		}
 	}
 
+	if ((polygonA->m_phantomEdges & (1 << normalIndex)) && separation >= -b2_linearSlop*10)
+	{
+		return;
+	}
+	
 	// Vertices that subtend the incident face.
 	int32 vertIndex1 = normalIndex;
 	int32 vertIndex2 = vertIndex1 + 1 < vertexCount ? vertIndex1 + 1 : 0;
