@@ -100,10 +100,14 @@ public:
 	b2Vec2 m_vertices[b2_maxPolygonVertices];
 	b2Vec2 m_normals[b2_maxPolygonVertices];
 	int32 m_count;
+	
+	// bit flags for phantom edges
+	int8 m_phantomEdges;
 };
 
 inline b2PolygonShape::b2PolygonShape()
 {
+	m_phantomEdges = 0;
 	m_type = e_polygon;
 	m_radius = b2_polygonRadius;
 	m_count = 0;

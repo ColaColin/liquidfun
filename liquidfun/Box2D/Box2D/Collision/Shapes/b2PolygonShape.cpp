@@ -30,6 +30,7 @@ b2Shape* b2PolygonShape::Clone(b2BlockAllocator* allocator) const
 
 void b2PolygonShape::SetAsBox(float32 hx, float32 hy)
 {
+	m_phantomEdges = 0;
 	m_count = 4;
 	m_vertices[0].Set(-hx, -hy);
 	m_vertices[1].Set( hx, -hy);
@@ -44,6 +45,7 @@ void b2PolygonShape::SetAsBox(float32 hx, float32 hy)
 
 void b2PolygonShape::SetAsBox(float32 hx, float32 hy, const b2Vec2& center, float32 angle)
 {
+	m_phantomEdges = 0;
 	m_count = 4;
 	m_vertices[0].Set(-hx, -hy);
 	m_vertices[1].Set( hx, -hy);
@@ -119,14 +121,16 @@ static b2Vec2 ComputeCentroid(const b2Vec2* vs, int32 count)
 }
 
 void b2PolygonShape::Set(const b2Vec2* vertices, int32 count)
-{
+{	
 	b2Assert(3 <= count && count <= b2_maxPolygonVertices);
 	if (count < 3)
 	{
 		SetAsBox(1.0f, 1.0f);
 		return;
 	}
-	
+		
+	m_phantomEdges = 0;
+		
 	int32 n = b2Min(count, b2_maxPolygonVertices);
 
 	// Perform welding and copy vertices into local buffer.

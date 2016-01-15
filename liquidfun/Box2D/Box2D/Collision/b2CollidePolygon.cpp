@@ -136,11 +136,15 @@ void b2CollidePolygons(b2Manifold* manifold,
 	int32 edge1;					// reference edge
 	uint8 flip;
 	const float32 k_tol = 0.1f * b2_linearSlop;
-
+	
+	float32 sep1;
+	float32 sep2;
 	if (separationB > separationA + k_tol)
 	{
 		poly1 = polyB;
 		poly2 = polyA;
+		sep1 = separationB;
+		sep2 = separationA;
 		xf1 = xfB;
 		xf2 = xfA;
 		edge1 = edgeB;
@@ -151,6 +155,8 @@ void b2CollidePolygons(b2Manifold* manifold,
 	{
 		poly1 = polyA;
 		poly2 = polyB;
+		sep1 = separationA;
+		sep2 = separationB;
 		xf1 = xfA;
 		xf2 = xfB;
 		edge1 = edgeA;
@@ -161,6 +167,19 @@ void b2CollidePolygons(b2Manifold* manifold,
 	b2ClipVertex incidentEdge[2];
 	b2FindIncidentEdge(incidentEdge, poly1, xf1, edge1, poly2, xf2);
 
+	// this allows to construct bodies from many tightly packed fixtures and ignore collisions on inner edges
+	// this prevents phantom collisions when objects made from many tiles slide along each other
+	// however if objects are completely inside of each other I'd like the behavior not to change, so only ignore
+	// phantom collisions that are inside the polygon skin, this way polygons can slide on the skin, but will collide when
+	// pressed harder into each other
+	 // in fact I rather have them slide more and collide less, so -totalRadius
+	if (((poly1->m_phantomEdges & (1 << incidentEdge[0].id.cf.indexA)) && sep1 >= -totalRadius)
+		|| 
+		((poly2->m_phantomEdges & (1 << incidentEdge[0].id.cf.indexB)) && sep2 >= -totalRadius)) 
+	{
+		return;
+	}
+	
 	int32 count1 = poly1->m_count;
 	const b2Vec2* vertices1 = poly1->m_vertices;
 
