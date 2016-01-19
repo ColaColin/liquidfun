@@ -111,6 +111,50 @@ static void b2FindIncidentEdge(b2ClipVertex c[2],
 	c[1].id.cf.typeB = b2ContactFeature::e_vertex;
 }
 
+static bool shouldSkipAsPhantom(float32 sep, const b2PolygonShape* p1, const b2PolygonShape* p2, 
+		int32 edge, const b2Transform& t1, const b2Transform& t2)
+{
+	if (sep >= -b2_linearSlop*6)
+	{
+		int32 phantomEdges = p1->m_phantomEdges;
+		bool vertex0IsPhantom = phantomEdges & (1 << (edge * 2));
+		bool vertex1IsPhantom = phantomEdges & (1 << (edge * 2 + 1));
+		
+		if (vertex0IsPhantom || vertex1IsPhantom) 
+		{
+			b2Vec2 otherCenter = p2->m_centroid;
+			otherCenter = b2Mul(t2, otherCenter);
+			const b2Vec2* vertices1 = p1->m_vertices;
+			if (vertex0IsPhantom)
+			{
+				int32 preVI = (edge == 0 ? p1->m_count : edge) - 1;
+				b2Vec2 preV = vertices1[preVI];
+				b2Vec2 v0 = vertices1[edge];
+				preV = b2Mul(t1, preV);
+				v0 = b2Mul(t1, v0);
+				if (b2PointLineSide(v0, preV, otherCenter) >= 0)
+				{
+					return true;
+				}
+			}
+			
+			if (vertex1IsPhantom)
+			{
+				int32 postVI = (edge == p1->m_count-1 ? 0 : edge + 1);
+				b2Vec2 postV = vertices1[postVI];
+				b2Vec2 v0 = vertices1[edge];
+				postV = b2Mul(t1, postV);
+				v0 = b2Mul(t1, v0);
+				if (b2PointLineSide(v0, postV, otherCenter) <= 0) 
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 // Find edge normal of max separation on A - return if separating axis is found
 // Find edge normal of max separation on B - return if separation axis is found
 // Choose reference edge as min(minA, minB)
@@ -174,20 +218,19 @@ void b2CollidePolygons(b2Manifold* manifold,
 	// however if objects are completely inside of each other I'd like the behavior not to change, so only ignore
 	// phantom collisions that are inside the polygon skin, this way polygons can slide on the skin, but will collide when
 	// pressed harder into each other
-	 // in fact I rather have them slide more and collide less, so be a little more generous, tweaked around my own object sizes...
-	if ((poly1->m_phantomEdges & (1 << edge1)) && sep1 >= -b2_linearSlop*10) 
+	if (shouldSkipAsPhantom(sep1, poly1, poly2, edge1, xf1, xf2)) 
 	{
 		return;
 	}
 	
 	b2ClipVertex incidentEdge[2];
 	b2FindIncidentEdge(incidentEdge, poly1, xf1, edge1, poly2, xf2);
-
-	if ((poly2->m_phantomEdges & (1 << incidentEdge[0].id.cf.indexB)) && sep2 >= -b2_linearSlop*10) 
+	
+	if (shouldSkipAsPhantom(sep2, poly2, poly1, incidentEdge[0].id.cf.indexB, xf2, xf1))
 	{
 		return;
 	}
-	
+
 	int32 count1 = poly1->m_count;
 	const b2Vec2* vertices1 = poly1->m_vertices;
 

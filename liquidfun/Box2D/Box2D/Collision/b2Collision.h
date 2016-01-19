@@ -249,7 +249,13 @@ bool b2TestOverlap(	const b2Shape* shapeA, int32 indexA,
 					const b2Shape* shapeB, int32 indexB,
 					const b2Transform& xfA, const b2Transform& xfB);
 
+					
 // ---------------- Inline Functions ------------------------------------------
+
+inline int32 b2PointLineSide(const b2Vec2& line1, const b2Vec2& line2, const b2Vec2& point)
+{
+	return (line2.x - line1.x) * (point.y - line1.y) - (line2.y - line1.y) * (point.x - line1.x);
+}
 
 inline bool b2AABB::IsValid() const
 {

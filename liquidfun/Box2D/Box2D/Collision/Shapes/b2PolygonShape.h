@@ -101,8 +101,12 @@ public:
 	b2Vec2 m_normals[b2_maxPolygonVertices];
 	int32 m_count;
 	
-	// bit flags for phantom edges
-	int8 m_phantomEdges;
+	// bit flags for phantom edges.
+	// 2 bits for each edge, to specify each vertex within each edge as phantom (=part of a smooth single edge that continues into a neighboring shape) or not
+	int16 m_phantomEdges;
+	#if b2_maxPolygonVertices > 8
+		m_phantomEdges does not support more than 8 vertices in this configuration. Maybe try int32/int64, but I won't be testing that.
+	#endif
 };
 
 inline b2PolygonShape::b2PolygonShape()
