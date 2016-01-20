@@ -102,10 +102,12 @@ public:
 	int32 m_count;
 	
 	// bit flags for phantom edges.
-	// 2 bits for each edge, to specify each vertex within each edge as phantom (=part of a smooth single edge that continues into a neighboring shape) or not
-	int16 m_phantomEdges;
+	// 4 bits for each edge, to specify each vertex within each edge as phantom (=part of a smooth single edge that continues into a neighboring shape) or not
+	// the 3rd and 4th bits are after the first 8 pairs are placed, so they are in the 16 higher bits
+	// the 3rd stands for "is extended in a straight line" the 4th for "extended into direction of own edge (0) or the previous edge (1)"
+	int32 m_phantomEdges;
 	#if b2_maxPolygonVertices > 8
-		m_phantomEdges does not support more than 8 vertices in this configuration. Maybe try int32/int64, but I won't be testing that.
+		m_phantomEdges does not support more than 8 vertices in this configuration. Maybe try int64, but I won't be testing that.
 	#endif
 };
 

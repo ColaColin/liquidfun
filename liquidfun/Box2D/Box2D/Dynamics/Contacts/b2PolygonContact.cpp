@@ -46,7 +46,8 @@ b2PolygonContact::b2PolygonContact(b2Fixture* fixtureA, b2Fixture* fixtureB)
 
 void b2PolygonContact::Evaluate(b2Manifold* manifold, const b2Transform& xfA, const b2Transform& xfB)
 {
+	bool shouldLog = (((int32)m_fixtureA->GetUserData()) == 48 && ((int32)m_fixtureB->GetUserData()) == 9) || (((int32)m_fixtureA->GetUserData()) == 9 && ((int32)m_fixtureB->GetUserData()) == 48);
 	b2CollidePolygons(	manifold,
 						(b2PolygonShape*)m_fixtureA->GetShape(), xfA,
-						(b2PolygonShape*)m_fixtureB->GetShape(), xfB);
+						(b2PolygonShape*)m_fixtureB->GetShape(), xfB, shouldLog);
 }

@@ -228,7 +228,7 @@ void b2CollidePolygonAndCircle(b2Manifold* manifold,
 /// Compute the collision manifold between two polygons.
 void b2CollidePolygons(b2Manifold* manifold,
 					   const b2PolygonShape* polygonA, const b2Transform& xfA,
-					   const b2PolygonShape* polygonB, const b2Transform& xfB);
+					   const b2PolygonShape* polygonB, const b2Transform& xfB, bool shouldLog);
 
 /// Compute the collision manifold between an edge and a circle.
 void b2CollideEdgeAndCircle(b2Manifold* manifold,
@@ -252,7 +252,7 @@ bool b2TestOverlap(	const b2Shape* shapeA, int32 indexA,
 					
 // ---------------- Inline Functions ------------------------------------------
 
-inline int32 b2PointLineSide(const b2Vec2& line1, const b2Vec2& line2, const b2Vec2& point)
+inline float32 b2PointLineSide(const b2Vec2& line1, const b2Vec2& line2, const b2Vec2& point)
 {
 	return (line2.x - line1.x) * (point.y - line1.y) - (line2.y - line1.y) * (point.x - line1.x);
 }

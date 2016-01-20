@@ -48,48 +48,6 @@ void b2CollideCircles(
 	manifold->points[0].id.key = 0;
 }
 
-static bool shouldSkipAsPhantom(float32 sep, const b2PolygonShape* p,
-		const b2Vec2& otherCenter, int32 edge, const b2Transform& t1, const b2Transform& t2)
-{
-	if (sep >= -b2_linearSlop*4)
-	{
-		int32 phantomEdges = p->m_phantomEdges;
-		bool vertex0IsPhantom = phantomEdges & (1 << (edge * 2));
-		bool vertex1IsPhantom = phantomEdges & (1 << (edge * 2 + 1));
-		
-		if (vertex0IsPhantom || vertex1IsPhantom) 
-		{
-			const b2Vec2* vertices1 = p->m_vertices;
-			if (vertex0IsPhantom)
-			{
-				int32 preVI = (edge == 0 ? p->m_count : edge) - 1;
-				b2Vec2 preV = vertices1[preVI];
-				b2Vec2 v0 = vertices1[edge];
-				preV = b2Mul(t1, preV);
-				v0 = b2Mul(t1, v0);
-				if (b2PointLineSide(v0, preV, otherCenter) >= 0)
-				{
-					return true;
-				}
-			}
-			
-			if (vertex1IsPhantom)
-			{
-				int32 postVI = (edge == p->m_count-1 ? 0 : edge + 1);
-				b2Vec2 postV = vertices1[postVI];
-				b2Vec2 v0 = vertices1[edge];
-				postV = b2Mul(t1, postV);
-				v0 = b2Mul(t1, v0);
-				if (b2PointLineSide(v0, postV, otherCenter) <= 0) 
-				{
-					return true;
-				}
-			}
-		}
-	}
-	return false;
-}
-
 void b2CollidePolygonAndCircle(
 	b2Manifold* manifold,
 	const b2PolygonShape* polygonA, const b2Transform& xfA,
@@ -124,11 +82,6 @@ void b2CollidePolygonAndCircle(
 			separation = s;
 			normalIndex = i;
 		}
-	}
-	
-	if (shouldSkipAsPhantom(separation, polygonA, c, normalIndex, xfA, xfB))
-	{
-		return;
 	}
 	
 	// Vertices that subtend the incident face.
