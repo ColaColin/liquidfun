@@ -20,16 +20,44 @@
 #include <Box2D/Collision/Shapes/b2PolygonShape.h>
 #include <stdio.h>
 
-inline static bool isExtendedVertex(int32 phantomFlags, int32 index)
+inline static bool isExtensionConfiguredAsEnd(int32 phantomFlags, int32 index)
 {
-	return phantomFlags & (1 << (b2_maxPolygonVertices * 2 + index * 2));
+	return phantomFlags & (1 << (b2_maxPolygonVertices * 2 + index * 2 + 1));
+}
+
+// otherCenter is expected to be in the same coordinate system as the vertices of the polygon on which the test is run
+inline static bool isExtendedVertex(int32 phantomFlags, int32 index, const b2Vec2* vertices, int32 vCount, const b2Vec2& otherCenter)
+{
+	bool extended = phantomFlags & (1 << (b2_maxPolygonVertices * 2 + index * 2)); // TODO: if all vertices of a polygon are extended, consider none of them extended
+	if (extended)
+	{
+		bool isEnd = isExtensionConfiguredAsEnd(phantomFlags, index);
+		int32 startIndex;
+		int32 endIndex;
+		if (isEnd)
+		{
+			startIndex = index == 0 ? vCount-1 : index-1;
+			endIndex = index;
+		}
+		else
+		{
+			startIndex = index;
+			endIndex = (index + 1) % vCount;
+		}
+		b2Vec2 startVec = vertices[startIndex];
+		b2Vec2 endVec = vertices[endIndex];
+		return b2PointLineSide(startVec, endVec, otherCenter) < 0;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 inline static b2Vec2 readExtendedVertex(const b2Vec2* vertices, const b2Vec2* normals, int32 count, int32 phantomFlags, int32 index)
 {
-	bool extendedAsEndVertex = phantomFlags & (1 << (b2_maxPolygonVertices * 2 + index * 2 + 1));
 	b2Vec2 extension;
-	if (extendedAsEndVertex)
+	if (isExtensionConfiguredAsEnd(phantomFlags, index))
 	{
 		b2Vec2 normal = normals[(index == 0 ? count-1 : index-1)];
 		extension = b2Vec2(-normal.y, normal.x);
@@ -46,7 +74,7 @@ inline static b2Vec2 readExtendedVertex(const b2Vec2* vertices, const b2Vec2* no
 // returns b2_maxFloat if the separation is larger than minSepForSkip
 static float32 b2FindMaxSeparation(int32* edgeIndex,
 								 const b2PolygonShape* poly1, const b2Transform& xf1,
-								 const b2PolygonShape* poly2, const b2Transform& xf2, float32 minSepForSkip, bool log)
+								 const b2PolygonShape* poly2, const b2Transform& xf2, float32 minSepForSkip, const b2Vec2& poly1Center)
 {
 	int32 count1 = poly1->m_count;
 	int32 count2 = poly2->m_count;
@@ -79,20 +107,12 @@ static float32 b2FindMaxSeparation(int32* edgeIndex,
 			}
 			
 			float32 pij;
-			if (isExtendedVertex(p2PhantomFlags, j))
+			if (isExtendedVertex(p2PhantomFlags, j, v2s, count2, poly1Center))
 			{	
-				if (log)
-				{
-					printf("vertex %d is extended for SAT\n", j);
-				}
 				pij = b2Dot(n, readExtendedVertex(v2s, n2s, count2, p2PhantomFlags, j) - v1);
 			}
 			else
 			{
-				if (log)
-				{
-					printf("vertex %d is NOT extended for SAT with phantomFlags=%d\n", j, p2PhantomFlags);
-				}
 				pij = sij;
 			}
 			
@@ -119,18 +139,13 @@ static float32 b2FindMaxSeparation(int32* edgeIndex,
 		}
 	}
 	
-	if (log)
-	{
-		printf("phantomSeparation %f, trueSeparation %f\n", phantomSeparation, trueSeparation);
-	}
-	
 	*edgeIndex = bestIndex;
 	return phantomSeparation;
 }
 
 static void b2FindIncidentEdge(b2ClipVertex c[2],
 							 const b2PolygonShape* poly1, const b2Transform& xf1, int32 edge1,
-							 const b2PolygonShape* poly2, const b2Transform& xf2)
+							 const b2PolygonShape* poly2, const b2Transform& xf2, const b2Vec2& center1In2)
 {
 	const b2Vec2* normals1 = poly1->m_normals;
 	int32 p2PhantomFlags = poly2->m_phantomEdges;
@@ -163,7 +178,7 @@ static void b2FindIncidentEdge(b2ClipVertex c[2],
 
 	b2Vec2 vi1;
 	b2Vec2 vi2;
-	if (isExtendedVertex(p2PhantomFlags, i1))
+	if (isExtendedVertex(p2PhantomFlags, i1, vertices2, count2, center1In2))
 	{
 		vi1 = readExtendedVertex(vertices2, normals2, count2, p2PhantomFlags, i1);
 	}
@@ -172,7 +187,7 @@ static void b2FindIncidentEdge(b2ClipVertex c[2],
 		vi1 = vertices2[i1];
 	}
 	
-	if (isExtendedVertex(p2PhantomFlags, i2))
+	if (isExtendedVertex(p2PhantomFlags, i2, vertices2, count2, center1In2))
 	{
 		vi2 = readExtendedVertex(vertices2, normals2, count2, p2PhantomFlags, i2);
 	}
@@ -194,8 +209,7 @@ static void b2FindIncidentEdge(b2ClipVertex c[2],
 	c[1].id.cf.typeB = b2ContactFeature::e_vertex;
 }
 
-static bool shouldSkipAsPhantom(float32 sep, const b2PolygonShape* p1, const b2PolygonShape* p2, 
-		int32 edge, const b2Transform& t1, const b2Transform& t2, bool foo)
+inline static bool shouldSkipAsPhantom(float32 sep, const b2PolygonShape* p1, int32 edge, const b2Vec2& otherCenter)
 {
 	if (sep >= -b2_phantomSlop)
 	{
@@ -209,23 +223,14 @@ static bool shouldSkipAsPhantom(float32 sep, const b2PolygonShape* p1, const b2P
 		}
 		if (vertex0IsPhantom || vertex1IsPhantom) 
 		{
-			b2Vec2 otherCenter = p2->m_centroid;
-			otherCenter = b2Mul(t2, otherCenter);
 			const b2Vec2* vertices1 = p1->m_vertices;
 			if (vertex0IsPhantom)
 			{
 				int32 preVI = (edge == 0 ? p1->m_count : edge) - 1;
 				b2Vec2 preV = vertices1[preVI];
 				b2Vec2 v0 = vertices1[edge];
-				preV = b2Mul(t1, preV);
-				v0 = b2Mul(t1, v0);
-				float32 pLineSide = b2PointLineSide(v0, preV, otherCenter);
-				if (pLineSide >= 0)
+				if (b2PointLineSide(v0, preV, otherCenter) > 0)
 				{
-					if (foo) {
-						printf("foo...");
-					}
-					printf("skip based on vertex0 of edge %d. pLineSide %f, v0: %f/%f, preV: %f/%f, otherCenter: %f/%f\n", edge, pLineSide, v0.x, v0.y, preV.x, preV.y, otherCenter.x, otherCenter.y);
 					return true;
 				}
 			}
@@ -234,15 +239,8 @@ static bool shouldSkipAsPhantom(float32 sep, const b2PolygonShape* p1, const b2P
 			{
 				b2Vec2 v0 = vertices1[(edge + 1) % p1->m_count];
 				b2Vec2 postV = vertices1[(edge + 2) % p1->m_count];
-				postV = b2Mul(t1, postV);
-				v0 = b2Mul(t1, v0);
-				float32 pLineSide = b2PointLineSide(v0, postV, otherCenter);
-				if (pLineSide <= 0) 
+				if (b2PointLineSide(v0, postV, otherCenter) < 0)
 				{
-					if (foo) {
-						printf("foo...");
-					}
-					printf("skip based on vertex1 of edge %d. pLineSide %f, v0: %f/%f, postV: %f/%f, otherCenter: %f/%f\n", edge, pLineSide, v0.x, v0.y, postV.x, postV.y, otherCenter.x, otherCenter.y);
 					return true;
 				}
 			}
@@ -265,13 +263,26 @@ void b2CollidePolygons(b2Manifold* manifold,
 	manifold->pointCount = 0;
 	float32 totalRadius = polyA->m_radius + polyB->m_radius;
 
+	b2Vec2 centerAInB = polyA->m_centroid;
+	if (polyB->m_phantomEdges != 0)
+	{
+		centerAInB = b2MulT(xfB, b2Mul(xfA, centerAInB));
+	} // else centerAInB will never be used, skip the work
+	
 	int32 edgeA = 0;
-	float32 separationA = b2FindMaxSeparation(&edgeA, polyA, xfA, polyB, xfB, totalRadius, shouldLog);
+	float32 separationA = b2FindMaxSeparation(&edgeA, polyA, xfA, polyB, xfB, totalRadius, centerAInB, shouldLog);
 	if (separationA > totalRadius)
 		return;
 
+		
+	b2Vec2 centerBInA = polyB->m_centroid;
+	if (polyA->m_phantomEdges != 0)
+	{
+		centerBInA = b2MulT(xfA, b2Mul(xfB, centerBInA));
+	} // else centerBInA will never be used, skip the work
+	
 	int32 edgeB = 0;
-	float32 separationB = b2FindMaxSeparation(&edgeB, polyB, xfB, polyA, xfA, totalRadius, shouldLog);
+	float32 separationB = b2FindMaxSeparation(&edgeB, polyB, xfB, polyA, xfA, totalRadius, centerBInA, shouldLog);
 	if (separationB > totalRadius)
 		return;
 
@@ -281,6 +292,8 @@ void b2CollidePolygons(b2Manifold* manifold,
 	int32 edge1;					// reference edge
 	uint8 flip;
 	const float32 k_tol = 0.1f * b2_linearSlop;
+	b2Vec2 center1In2;
+	b2Vec2 center2In1;
 	
 	float32 sep1;
 	float32 sep2;
@@ -288,6 +301,8 @@ void b2CollidePolygons(b2Manifold* manifold,
 	{
 		poly1 = polyB;
 		poly2 = polyA;
+		center1In2 = centerBInA;
+		center2In1 = centerAInB;
 		sep1 = separationB;
 		sep2 = separationA;
 		xf1 = xfB;
@@ -300,6 +315,8 @@ void b2CollidePolygons(b2Manifold* manifold,
 	{
 		poly1 = polyA;
 		poly2 = polyB;
+		center1In2 = centerAInB;
+		center2In1 = centerBInA;
 		sep1 = separationA;
 		sep2 = separationB;
 		xf1 = xfA;
@@ -311,27 +328,27 @@ void b2CollidePolygons(b2Manifold* manifold,
 	
 	if (shouldLog)
 	{
-		printf("poly1->m_count is %d, edge1 is %d, flip is %d, sep1 is %f, sep2 is %f\n", poly1->m_count, edge1, flip, sep1, sep2);
+	//	printf("poly1->m_count is %d, edge1 is %d, flip is %d, sep1 is %f, sep2 is %f\n", poly1->m_count, edge1, flip, sep1, sep2);
 	}
 	
 	// this allows to construct bodies from many tightly packed fixtures and ignore collisions on inner edges
 	// this prevents many (not all sadly) phantom collisions when objects made from many tiles slide along each other
 	// however if objects are completely inside of each other I'd like the behavior not to change, so only ignore
-	// phantom collisions that are inside the polygon skin, this way polygons can slide on the skin, but will collide when
+	// phantom collisions that are not too deep, this way polygons can slide on the skin, but will collide when
 	// pressed harder into each other
-	if (shouldSkipAsPhantom(sep1, poly1, poly2, edge1, xf1, xf2, true)) 
+	if (shouldSkipAsPhantom(sep1, poly1, edge1, center2In1)) 
 	{
 		return;
 	}
 	
 	b2ClipVertex incidentEdge[2];
-	b2FindIncidentEdge(incidentEdge, poly1, xf1, edge1, poly2, xf2);
+	b2FindIncidentEdge(incidentEdge, poly1, xf1, edge1, poly2, xf2, center1In2);
 	
 	if (shouldLog) {
-		printf("incidentEdge is: %f/%f - %f/%f\n", incidentEdge[0].v.x, incidentEdge[0].v.y, incidentEdge[1].v.x, incidentEdge[1].v.y);
+	//	printf("incidentEdge is: %f/%f - %f/%f\n", incidentEdge[0].v.x, incidentEdge[0].v.y, incidentEdge[1].v.x, incidentEdge[1].v.y);
 	}
 	
-	if (shouldSkipAsPhantom(sep2, poly2, poly1, incidentEdge[0].id.cf.indexB, xf2, xf1, false))
+	if (shouldSkipAsPhantom(sep2, poly2, incidentEdge[0].id.cf.indexB, center1In2))
 	{
 		return;
 	}
@@ -347,7 +364,7 @@ void b2CollidePolygons(b2Manifold* manifold,
 	
 	b2Vec2 v11;
 	b2Vec2 v12;
-	if (isExtendedVertex(phantomFlags, iv1))
+	if (isExtendedVertex(phantomFlags, iv1, vertices1, count1, center2In1))
 	{
 		v11 = readExtendedVertex(vertices1, normals1, count1, phantomFlags, iv1);
 	}
@@ -356,7 +373,7 @@ void b2CollidePolygons(b2Manifold* manifold,
 		v11 = vertices1[iv1];
 	}
 	
-	if (isExtendedVertex(phantomFlags, iv2))
+	if (isExtendedVertex(phantomFlags, iv2, vertices1, count1, center2In1))
 	{
 		v12 = readExtendedVertex(vertices1, normals1, count1, phantomFlags, iv2);
 	}
@@ -364,16 +381,7 @@ void b2CollidePolygons(b2Manifold* manifold,
 	{
 		v12 = vertices1[iv2];
 	}
-	/*
-		b2Vec2 v11 = vertices1[iv1];
-		b2Vec2 v12 = vertices1[iv2];
-	*/
-	/*
-	b2Vec2 localTangent = v12 - v11;
-	localTangent.Normalize();
-	
-	b2Vec2 localNormal = b2Cross(localTangent, 1.0f);
-	*/
+
 	b2Vec2 localNormal = normals1[edge1];
 	b2Vec2 localTangent = b2Vec2(-localNormal.y, localNormal.x);
 	
@@ -383,7 +391,7 @@ void b2CollidePolygons(b2Manifold* manifold,
 	b2Vec2 normal = b2Cross(tangent, 1.0f);
 	
 	if (shouldLog) {
-		printf("tangent is %f/%f, normal is %f/%f\n", tangent.x, tangent.y, normal.x, normal.y);
+	//	printf("tangent is %f/%f, normal is %f/%f\n", tangent.x, tangent.y, normal.x, normal.y);
 	}
 	
 	v11 = b2Mul(xf1, v11);
@@ -417,7 +425,7 @@ void b2CollidePolygons(b2Manifold* manifold,
 	
 	if (shouldLog)
 	{
-		printf("clipPoints A: %f/%f B: %f/%f\n====\n", clipPoints2[0].v.x, clipPoints2[0].v.y, clipPoints2[1].v.x, clipPoints2[1].v.y);
+	//	printf("clipPoints A: %f/%f B: %f/%f\n====\n", clipPoints2[0].v.x, clipPoints2[0].v.y, clipPoints2[1].v.x, clipPoints2[1].v.y);
 	}
 	
 	// Now clipPoints2 contains the clipped points.

@@ -101,10 +101,12 @@ public:
 	b2Vec2 m_normals[b2_maxPolygonVertices];
 	int32 m_count;
 	
-	// bit flags for phantom edges.
+	// bit flags for phantom edges and phantom vertices
 	// 4 bits for each edge, to specify each vertex within each edge as phantom (=part of a smooth single edge that continues into a neighboring shape) or not
 	// the 3rd and 4th bits are after the first 8 pairs are placed, so they are in the 16 higher bits
 	// the 3rd stands for "is extended in a straight line" the 4th for "extended into direction of own edge (0) or the previous edge (1)"
+	// think of this pattern each letter is a bit: AB AB AB AB <- first eight bits, last ->     XYXY XY XY
+	//                                             ^ A is startvertex of edge 0, B endvertex    ^ X is "is it extended" Y is "direction of own edge or previous" for edge 0			
 	int32 m_phantomEdges;
 	#if b2_maxPolygonVertices > 8
 		m_phantomEdges does not support more than 8 vertices in this configuration. Maybe try int64, but I won't be testing that.
