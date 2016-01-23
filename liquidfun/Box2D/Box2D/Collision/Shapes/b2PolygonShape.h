@@ -99,6 +99,8 @@ public:
 	b2Vec2 m_centroid;
 	b2Vec2 m_vertices[b2_maxPolygonVertices];
 	b2Vec2 m_normals[b2_maxPolygonVertices];
+	// m_vertices will be shrunk by the polygonskin thickness, this contains the original vertices and will be accessed by javascript via GetVertex
+	b2Vec2 m_originalVertices[b2_maxPolygonVertices];
 	int32 m_count;
 	
 	// bit flags for phantom edges and phantom vertices
@@ -111,6 +113,9 @@ public:
 	#if b2_maxPolygonVertices > 8
 		m_phantomEdges does not support more than 8 vertices in this configuration. Maybe try int64, but I won't be testing that.
 	#endif
+	
+	private:
+	void ShrinkVertices();
 };
 
 inline b2PolygonShape::b2PolygonShape()
@@ -122,10 +127,11 @@ inline b2PolygonShape::b2PolygonShape()
 	m_centroid.SetZero();
 }
 
+/// returns the unshrunk Vertex, do not use for physics stuff.
 inline const b2Vec2& b2PolygonShape::GetVertex(int32 index) const
 {
 	b2Assert(0 <= index && index < m_count);
-	return m_vertices[index];
+	return m_originalVertices[index];
 }
 
 #if LIQUIDFUN_EXTERNAL_LANGUAGE_API

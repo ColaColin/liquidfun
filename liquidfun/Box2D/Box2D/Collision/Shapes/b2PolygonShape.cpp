@@ -28,6 +28,27 @@ b2Shape* b2PolygonShape::Clone(b2BlockAllocator* allocator) const
 	return clone;
 }
 
+void b2PolygonShape::ShrinkVertices()
+{
+	for (int32 i = 0; i < b2_maxPolygonVertices; i++)
+	{
+		m_originalVertices[i].Set(m_vertices[i].x, m_vertices[i].y);
+	}
+	float32 shrinkValue = b2_polygonRadius + 0.5 * b2_linearSlop;
+	for (int32 i = 0; i < b2_maxPolygonVertices; i++)
+	{	
+		b2Vec2 centroidRelative = m_vertices[i] - m_centroid;
+		float32 length = centroidRelative.Length();
+		if (length > shrinkValue) 
+		{
+			float32 targetLength = length - shrinkValue;
+			float32 factor = targetLength / length;
+			centroidRelative *= factor;
+			m_vertices[i] = centroidRelative + m_centroid;
+		}
+	}
+}
+
 void b2PolygonShape::SetAsBox(float32 hx, float32 hy)
 {
 	m_phantomEdges = 0;
@@ -41,6 +62,7 @@ void b2PolygonShape::SetAsBox(float32 hx, float32 hy)
 	m_normals[2].Set(0.0f, 1.0f);
 	m_normals[3].Set(-1.0f, 0.0f);
 	m_centroid.SetZero();
+	ShrinkVertices();
 }
 
 void b2PolygonShape::SetAsBox(float32 hx, float32 hy, const b2Vec2& center, float32 angle)
@@ -67,6 +89,7 @@ void b2PolygonShape::SetAsBox(float32 hx, float32 hy, const b2Vec2& center, floa
 		m_vertices[i] = b2Mul(xf, m_vertices[i]);
 		m_normals[i] = b2Mul(xf.q, m_normals[i]);
 	}
+	ShrinkVertices();
 }
 
 int32 b2PolygonShape::GetChildCount() const
@@ -243,6 +266,8 @@ void b2PolygonShape::Set(const b2Vec2* vertices, int32 count)
 
 	// Compute the polygon centroid.
 	m_centroid = ComputeCentroid(m_vertices, m);
+	
+	ShrinkVertices();
 }
 
 bool b2PolygonShape::TestPoint(const b2Transform& xf, const b2Vec2& p) const

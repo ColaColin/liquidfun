@@ -123,7 +123,7 @@ static float32 b2FindMaxSeparation(int32* edgeIndex,
 		}
 		
 		// no collision will happen anyway, skip the work
-		if (si > minSepForSkip) {
+		if (si >= minSepForSkip) {
 			return b2_maxFloat;
 		}
 		
