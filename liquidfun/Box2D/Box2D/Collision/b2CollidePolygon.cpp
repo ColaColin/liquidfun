@@ -258,7 +258,7 @@ inline static bool shouldSkipAsPhantom(float32 sep, const b2PolygonShape* p1, in
 // The normal points from 1 to 2
 void b2CollidePolygons(b2Manifold* manifold,
 					  const b2PolygonShape* polyA, const b2Transform& xfA,
-					  const b2PolygonShape* polyB, const b2Transform& xfB, bool shouldLog)
+					  const b2PolygonShape* polyB, const b2Transform& xfB)
 {
 	manifold->pointCount = 0;
 	float32 totalRadius = polyA->m_radius + polyB->m_radius;
@@ -270,7 +270,7 @@ void b2CollidePolygons(b2Manifold* manifold,
 	} // else centerAInB will never be used, skip the work
 	
 	int32 edgeA = 0;
-	float32 separationA = b2FindMaxSeparation(&edgeA, polyA, xfA, polyB, xfB, totalRadius, centerAInB, shouldLog);
+	float32 separationA = b2FindMaxSeparation(&edgeA, polyA, xfA, polyB, xfB, totalRadius, centerAInB);
 	if (separationA > totalRadius)
 		return;
 
@@ -282,7 +282,7 @@ void b2CollidePolygons(b2Manifold* manifold,
 	} // else centerBInA will never be used, skip the work
 	
 	int32 edgeB = 0;
-	float32 separationB = b2FindMaxSeparation(&edgeB, polyB, xfB, polyA, xfA, totalRadius, centerBInA, shouldLog);
+	float32 separationB = b2FindMaxSeparation(&edgeB, polyB, xfB, polyA, xfA, totalRadius, centerBInA);
 	if (separationB > totalRadius)
 		return;
 
@@ -326,16 +326,12 @@ void b2CollidePolygons(b2Manifold* manifold,
 		flip = 0;
 	}
 	
-	if (shouldLog)
-	{
-	//	printf("poly1->m_count is %d, edge1 is %d, flip is %d, sep1 is %f, sep2 is %f\n", poly1->m_count, edge1, flip, sep1, sep2);
-	}
-	
 	// this allows to construct bodies from many tightly packed fixtures and ignore collisions on inner edges
 	// this prevents many (not all sadly) phantom collisions when objects made from many tiles slide along each other
 	// however if objects are completely inside of each other I'd like the behavior not to change, so only ignore
 	// phantom collisions that are not too deep, this way polygons can slide on the skin, but will collide when
-	// pressed harder into each other
+	// pressed harder into each other. Additionally in case of perfectly straight connections vertices may be extended for 
+	// the collision response, see readExtendedVertex 
 	if (shouldSkipAsPhantom(sep1, poly1, edge1, center2In1)) 
 	{
 		return;
@@ -343,10 +339,6 @@ void b2CollidePolygons(b2Manifold* manifold,
 	
 	b2ClipVertex incidentEdge[2];
 	b2FindIncidentEdge(incidentEdge, poly1, xf1, edge1, poly2, xf2, center1In2);
-	
-	if (shouldLog) {
-	//	printf("incidentEdge is: %f/%f - %f/%f\n", incidentEdge[0].v.x, incidentEdge[0].v.y, incidentEdge[1].v.x, incidentEdge[1].v.y);
-	}
 	
 	if (shouldSkipAsPhantom(sep2, poly2, incidentEdge[0].id.cf.indexB, center1In2))
 	{
@@ -390,10 +382,6 @@ void b2CollidePolygons(b2Manifold* manifold,
 	b2Vec2 tangent = b2Mul(xf1.q, localTangent);
 	b2Vec2 normal = b2Cross(tangent, 1.0f);
 	
-	if (shouldLog) {
-	//	printf("tangent is %f/%f, normal is %f/%f\n", tangent.x, tangent.y, normal.x, normal.y);
-	}
-	
 	v11 = b2Mul(xf1, v11);
 	v12 = b2Mul(xf1, v12);
 
@@ -421,11 +409,6 @@ void b2CollidePolygons(b2Manifold* manifold,
 	if (np < 2)
 	{
 		return;
-	}
-	
-	if (shouldLog)
-	{
-	//	printf("clipPoints A: %f/%f B: %f/%f\n====\n", clipPoints2[0].v.x, clipPoints2[0].v.y, clipPoints2[1].v.x, clipPoints2[1].v.y);
 	}
 	
 	// Now clipPoints2 contains the clipped points.
