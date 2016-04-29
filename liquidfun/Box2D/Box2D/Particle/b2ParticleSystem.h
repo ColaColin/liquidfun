@@ -281,6 +281,10 @@ struct b2ParticleSystemDef
 class b2ParticleSystem
 {
 public:
+
+	/// Get the time elapsed in b2ParticleSystemDef::lifetimeGranularity.
+	int32 GetQuantizedTimeElapsed() const;
+
 	/// Create a particle whose properties have been defined.
 	/// No reference to the definition is retained.
 	/// A simulation step must occur before it's possible to interact with a
@@ -1036,8 +1040,6 @@ private:
 	/// Determine whether a particle index is valid.
 	bool ValidateParticleIndex(const int32 index) const;
 
-	/// Get the time elapsed in b2ParticleSystemDef::lifetimeGranularity.
-	int32 GetQuantizedTimeElapsed() const;
 	/// Convert a lifetime in seconds to an expiration time.
 	int64 LifetimeToExpirationTime(const float32 lifetime) const;
 
