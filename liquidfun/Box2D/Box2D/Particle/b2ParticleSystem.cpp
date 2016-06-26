@@ -408,7 +408,8 @@ b2ParticleSystem::b2ParticleSystem(const b2ParticleSystemDef* def,
 	SetGravityScale(def->gravityScale);
 	SetRadius(def->radius);
 	SetMaxParticleCount(def->maxCount);
-
+	SetFilterData(def->filter);
+	
 	m_count = 0;
 	m_internalAllocatedCapacity = 0;
 	m_forceBuffer = NULL;
@@ -424,7 +425,7 @@ b2ParticleSystem::b2ParticleSystem(const b2ParticleSystemDef* def,
 
 	b2Assert(def->lifetimeGranularity > 0.0f);
 	m_def = *def;
-
+	
 	m_world = world;
 
 	m_stuckThreshold = 0;
@@ -2520,6 +2521,26 @@ private:
 		{
 			return true;
 		}
+		
+		const b2Filter& filterA = fixture->GetFilterData();
+		const b2Filter& filterB = m_system->GetFilterData();
+		
+		bool shouldCollide = true;
+		
+		if (filterA.groupIndex == filterB.groupIndex && filterA.groupIndex != 0)
+		{
+			shouldCollide = filterA.groupIndex > 0;
+		}
+		else
+		{
+			shouldCollide = (filterA.maskBits & filterB.categoryBits) != 0 && (filterA.categoryBits & filterB.maskBits) != 0;
+		}
+		
+		if (!shouldCollide) 
+		{
+			return true;
+		}
+		
 		const b2Shape* shape = fixture->GetShape();
 		int32 childCount = shape->GetChildCount();
 		for (int32 childIndex = 0; childIndex < childCount; childIndex++)

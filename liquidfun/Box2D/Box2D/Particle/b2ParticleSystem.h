@@ -22,6 +22,7 @@
 #include <Box2D/Common/b2GrowableBuffer.h>
 #include <Box2D/Particle/b2Particle.h>
 #include <Box2D/Dynamics/b2TimeStep.h>
+#include <Box2D/Dynamics/b2Fixture.h>
 
 #if LIQUIDFUN_UNIT_TESTS
 #include <gtest/gtest.h>
@@ -179,7 +180,9 @@ struct b2ParticleSystemDef
 		destroyByAge = true;
 		lifetimeGranularity = 1.0f / 60.0f;
 	}
-
+	/// Allows to control collisions between the whole particle system and fixtures
+	b2Filter filter;
+	
 	/// Enable strict Particle/Body contact check.
 	/// See SetStrictContactCheck for details.
 	bool strictContactCheck;
@@ -281,7 +284,10 @@ struct b2ParticleSystemDef
 class b2ParticleSystem
 {
 public:
-
+	
+	const b2Filter& GetFilterData() const;
+	void SetFilterData(const b2Filter& filter);
+	
 	/// Get the time elapsed in b2ParticleSystemDef::lifetimeGranularity.
 	int32 GetQuantizedTimeElapsed() const;
 
@@ -751,6 +757,8 @@ private:
 	FRIEND_TEST(FunctionTests, GetParticleMass);
 	FRIEND_TEST(FunctionTests, AreProxyBuffersTheSame);
 #endif // LIQUIDFUN_UNIT_TESTS
+
+	b2Filter m_filter;
 
 	template <typename T>
 	struct UserOverridableBuffer
@@ -1468,6 +1476,15 @@ inline void b2ParticleSystem::ParticleApplyLinearImpulse(int32 index,
 	ApplyLinearImpulse(index, index + 1, impulse);
 }
 
+inline void b2ParticleSystem::SetFilterData(const b2Filter& filter)
+{
+	m_filter = filter;
+}
+
+inline const b2Filter& b2ParticleSystem::GetFilterData() const
+{
+	return m_filter;
+}
 
 // Note: These functions must go in the header so the unit tests will compile
 // them. b2ParticleSystem.cpp does not compile with this #define.
