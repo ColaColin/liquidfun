@@ -98,10 +98,26 @@ public:
 
 	/// The local anchor point relative to bodyB's origin.
 	const b2Vec2& GetLocalAnchorB() const  { return m_localAnchorB; }
-
+	
+	void SetLocalAnchorA(const b2Vec2& a)
+	{
+		m_localAnchorA.Set(a.x, a.y);
+	}
+	
+	void SetLocalAnchorB(const b2Vec2& b)
+	{
+		m_localAnchorB.Set(b.x, b.y);
+	}
+	
 	/// Get the reference angle.
 	float32 GetReferenceAngle() const { return m_referenceAngle; }
-
+	
+	/// Set the reference angle.
+	void SetReferenceAngle(float32 a) 
+	{
+		m_referenceAngle = a;
+	}
+	
 	/// Get the current joint angle in radians.
 	float32 GetJointAngle() const;
 

@@ -104,6 +104,12 @@ public:
 	/// Get the reference angle.
 	float32 GetReferenceAngle() const { return m_referenceAngle; }
 
+	/// Set the reference angle.
+	void SetReferenceAngle(float32 a) 
+	{
+		m_referenceAngle = a;
+	}
+	
 	/// Get the current joint translation, usually in meters.
 	float32 GetJointTranslation() const;
 
